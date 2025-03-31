@@ -14,8 +14,15 @@ def get_user(request):
 
 
 @api_view(['GET'])
-def get_product(request):
-    products = Product.objects.all()
+def get_product(request, product_type):
+    if product_type == "tous":
+        products = Product.objects.all()
+    else:
+        try:
+            products = Product.objects.filter(product_type=product_type)
+        except Product.DoesNotExist:
+            return Response([], status=status.HTTP_404_NOT_FOUND)
+
     return Response(ProductSerializer(products, many=True).data)
 
 
