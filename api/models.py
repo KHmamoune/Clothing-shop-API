@@ -4,6 +4,7 @@ class User(models.Model):
     user_name = models.CharField(max_length=255)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
+    password = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=255)
     email = models.CharField(max_length=255)
     user_type = models.CharField(max_length=255)
