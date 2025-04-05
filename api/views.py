@@ -4,8 +4,6 @@ from rest_framework import status
 from .models import Product, User
 from .serializer import ProductSerializer, UserSerializer
 
-from django.shortcuts import render
-
 
 @api_view(['GET'])
 def get_user(request):
@@ -66,3 +64,25 @@ def user_details(request, pk):
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def product_details(request, pk):
+    try:
+        product = Product.objects.get(pk=pk)
+    except Product.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
+
+    if request.method == 'PUT':
+        serializer = ProductSerializer(product, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'DELETE':
+        product.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
