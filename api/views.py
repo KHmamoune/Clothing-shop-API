@@ -1,8 +1,47 @@
-from rest_framework.decorators import api_view
+from django.contrib.auth.hashers import make_password, check_password
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Product, User
-from .serializer import ProductSerializer, UserSerializer
+from rest_framework.authtoken.models import Token
+from .models import Product, Promotion, User
+from .serializer import ProductSerializer, PromotionSerializer, UserSerializer
+from django.shortcuts import get_object_or_404
+
+
+@api_view(['POST'])
+def signup(request):
+    serializer = UserSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save()
+        user = User.objects.get(username=request.data['username'])
+        user.set_password(request.data['password'])
+        user.save()
+        token = Token.objects.create(user=user)
+        return Response({'token': token.key, 'user': serializer.data})
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def login(request):
+    user = get_object_or_404(User, username=request.data['username'])
+
+    if not user.check_password(request.data['password']):
+        return Response("missing user", status=status.HTTP_404_NOT_FOUND)
+
+    token, created = Token.objects.get_or_create(user=user)
+    serializer = UserSerializer(user)
+    return Response({'token': token.key, 'user': serializer.data})
+
+
+@api_view(['GET'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def test_token(request):
+    return Response("passed!")
 
 
 @api_view(['GET'])
@@ -24,6 +63,26 @@ def get_product(request, product_type):
     return Response(ProductSerializer(products, many=True).data)
 
 
+@api_view(['GET'])
+def get_promotion(request, pk):
+    try:
+        promotion = Promotion.objects.filter(id_product=pk)
+    except Promotion.DoesNotExist:
+        return Response([], status=status.HTTP_404_NOT_FOUND)
+
+    return Response(PromotionSerializer(promotion, many=True).data)
+
+
+@api_view(['GET'])
+def get_promotions(request):
+    try:
+        promotion = Promotion.objects.all()
+    except Promotion.DoesNotExist:
+        return Response([], status=status.HTTP_404_NOT_FOUND)
+
+    return Response(PromotionSerializer(promotion, many=True).data)
+
+
 @api_view(['POST'])
 def create_user(request):
     serializer = UserSerializer(data=request.data)
@@ -36,6 +95,15 @@ def create_user(request):
 @api_view(['POST'])
 def create_product(request):
     serializer = ProductSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.data, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def create_promotion(request):
+    serializer = PromotionSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -85,4 +153,27 @@ def product_details(request, pk):
 
     if request.method == 'DELETE':
         product.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def promotion_details(request, pk):
+    try:
+        promotion = Promotion.objects.get(pk=pk)
+    except Promotion.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = PromotionSerializer(promotion)
+        return Response(serializer.data)
+
+    if request.method == 'PUT':
+        serializer = PromotionSerializer(promotion, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'DELETE':
+        promotion.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
