@@ -22,6 +22,8 @@ class PromotionSerializer(serializers.ModelSerializer):
 
 
 class SizeSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(source='id_product', read_only=True)
+
     class Meta:
         model = Size
         fields = '__all__'

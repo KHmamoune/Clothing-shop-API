@@ -17,7 +17,7 @@ class Product(models.Model):
 
 
 class Size(models.Model):
-    id_product = models.OneToOneField(Product, on_delete=models.CASCADE)
+    id_product = models.ForeignKey(Product, on_delete=models.CASCADE)
     size = models.CharField(max_length=255)
     quantity = models.IntegerField()
     color = models.CharField(max_length=255)

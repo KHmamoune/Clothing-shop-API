@@ -5,8 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from .models import Product, Promotion, User
-from .serializer import ProductSerializer, PromotionSerializer, UserSerializer
+from .models import Product, Promotion, Size, User
+from .serializer import ProductSerializer, PromotionSerializer, SizeSerializer, UserSerializer
 from django.shortcuts import get_object_or_404
 
 
@@ -40,8 +40,11 @@ def login(request):
 @api_view(['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def test_token(request):
-    return Response("passed!")
+def test_token(request, token_key):
+    token = Token.objects.get(key=token_key)
+    user = get_object_or_404(User, username=token.user.username)
+    serializer = UserSerializer(user)
+    return Response({'token': serializer.data})
 
 
 @api_view(['GET'])
@@ -83,6 +86,26 @@ def get_promotions(request):
     return Response(PromotionSerializer(promotion, many=True).data)
 
 
+@api_view(['GET'])
+def get_size(request, pk):
+    try:
+        size = Size.objects.filter(id_product=pk)
+    except Size.DoesNotExist:
+        return Response([], status=status.HTTP_404_NOT_FOUND)
+
+    return Response(SizeSerializer(size, many=True).data)
+
+
+@api_view(['GET'])
+def get_sizes(request):
+    try:
+        size = Size.objects.all()
+    except Size.DoesNotExist:
+        return Response([], status=status.HTTP_404_NOT_FOUND)
+
+    return Response(SizeSerializer(size, many=True).data)
+
+
 @api_view(['POST'])
 def create_user(request):
     serializer = UserSerializer(data=request.data)
@@ -104,6 +127,15 @@ def create_product(request):
 @api_view(['POST'])
 def create_promotion(request):
     serializer = PromotionSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.data, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def create_size(request):
+    serializer = SizeSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -176,4 +208,27 @@ def promotion_details(request, pk):
 
     if request.method == 'DELETE':
         promotion.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def size_details(request, pk):
+    try:
+        size = Size.objects.get(pk=pk)
+    except Size.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = SizeSerializer(size)
+        return Response(serializer.data)
+
+    if request.method == 'PUT':
+        serializer = SizeSerializer(size, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'DELETE':
+        size.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
